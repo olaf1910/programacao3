@@ -1,2 +1,12 @@
-# programacao3
-Projecto Programacao III
+## Projecto prático para Programacao III
+
+### INSTITUTO SUPERIOR MIGUEL TORGA  
+<br />
+<br />
+<br />
+
+# FEEDZZTRAB
+<pre>
+Aplicação para gestão de tarefas de equipas de trabalho.
+</pre>
+----------
