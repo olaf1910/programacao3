@@ -1,0 +1,22 @@
+{
+  "dbcode.connections": [
+    {
+      "connectionId": "PlZQBqSL24TM8n02_97CN",
+      "name": "programacao3",
+      "driver": "mysql",
+      "connectionType": "host",
+      "host": "sql.freedb.tech",
+      "port": 3306,
+      "ssl": false,
+      "username": "freedb_programacao3",
+      "password": "",
+      "savePassword": "secretStorage",
+      "database": "freedb_programacao3",
+      "readOnly": false,
+      "connectionTimeout": 30,
+      "driverOptions": {
+        "retrievePublickey": true
+      }
+    }
+  ]
+}
