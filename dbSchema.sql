@@ -4,7 +4,7 @@ DROP TABLE IF EXISTS Job_Assignments, Jobs, User_Skills, Skills, Users, Roles;
 -- 1. Roles Table
 CREATE TABLE Roles (
     role_id INT AUTO_INCREMENT PRIMARY KEY,
-    role_name ENUM('admin', 'manager', 'team_leader', 'programmer') NOT NULL UNIQUE
+    role_name ENUM('admin', 'gerente', 'lider_equipa', 'programador') NOT NULL UNIQUE
 )
 CHARACTER SET utf8mb4
 COLLATE utf8mb4_unicode_ci;
@@ -72,14 +72,15 @@ COLLATE utf8mb4_unicode_ci;
 
 -- Insert initial data to test the database
 -- Insert roles
-INSERT INTO Roles (role_name) VALUES ('admin'), ('manager'), ('team_leader'), ('programmer');
+INSERT INTO Roles (role_name) VALUES ('admin'), ('gerente'), ('lider_equipa'), ('programador');
 
 -- Insert sample users with Portuguese-friendly characters
+-- todas as password para senha123 encriptada
 INSERT INTO Users (username, password_hash, email, role_id) VALUES
-('admin_user', 'hashed_password_placeholder', 'admin@exemplo.com', 1),
-('gerente1', 'hashed_password_placeholder', 'gerente1@exemplo.com', 2),
-('líder_equipa1', 'hashed_password_placeholder', 'lider1@exemplo.com', 3),
-('programador1', 'hashed_password_placeholder', 'programador1@exemplo.com', 4);
+('admin_user', '$2a$12$86gMTbosi8QLgf.gQt09MeNYWksfTcCwKU3A6uGYTE3jidHjuw3Vq', 'admin@exemplo.com', 1),
+('gerente1', '$2a$12$86gMTbosi8QLgf.gQt09MeNYWksfTcCwKU3A6uGYTE3jidHjuw3Vq', 'gerente1@exemplo.com', 2),
+('líder_equipa1', '$2a$12$86gMTbosi8QLgf.gQt09MeNYWksfTcCwKU3A6uGYTE3jidHjuw3Vq', 'lider1@exemplo.com', 3),
+('programador1', '$2a$12$86gMTbosi8QLgf.gQt09MeNYWksfTcCwKU3A6uGYTE3jidHjuw3Vq', 'programador1@exemplo.com', 4);
 
 -- Insert sample skills with Portuguese terms
 INSERT INTO Skills (skill_name) VALUES ('Java'), ('Python'), ('Desenvolvimento Web');

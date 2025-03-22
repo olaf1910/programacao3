@@ -1,13 +1,13 @@
 openapi: 3.0.3
 info:
   title: FeedzzTrab API
-  description: API para gerenciar atribuições de tarefas no sistema FeedzzTrab, projetado para gerentes, líderes de equipe e programadores.
+  description: API para gerir atribuições de tarefas no sistema FeedzzTrab, projetado para gerentes, líderes de equipa e programadores.
   version: 1.0.0
 servers:
   - url: http://localhost:3000/api
     description: Servidor de desenvolvimento local
   - url: https://feedzztrab.example.com/api
-    description: Servidor de produção (substitua pela sua URL hospedada)
+    description: Servidor de produção (substitua pela sua URL alojada)
 
 components:
   securitySchemes:
@@ -17,116 +17,116 @@ components:
       bearerFormat: JWT
 
   schemas:
-    User:
+    Utilizador:
       type: object
       properties:
-        user_id:
+        utilizador_id:
           type: integer
           example: 1
-        username:
+        nome_utilizador:
           type: string
           example: "programador1"
         email:
           type: string
           example: "programador1@exemplo.com"
-        role:
+        funcao:
           type: string
-          enum: [admin, manager, team_leader, programmer]
-          example: "programmer"
-        created_at:
+          enum: [admin, gerente, lider_equipa, programador]
+          example: "programador"
+        criado_em:
           type: string
           format: date-time
           example: "2025-03-22T10:00:00Z"
       required:
-        - user_id
-        - username
+        - utilizador_id
+        - nome_utilizador
         - email
-        - role
+        - funcao
 
-    Skill:
+    Competencia:
       type: object
       properties:
-        skill_id:
+        competencia_id:
           type: integer
           example: 1
-        skill_name:
+        nome_competencia:
           type: string
           example: "Desenvolvimento Web"
       required:
-        - skill_id
-        - skill_name
+        - competencia_id
+        - nome_competencia
 
-    Job:
+    Tarefa:
       type: object
       properties:
-        job_id:
+        tarefa_id:
           type: integer
           example: 1
-        description:
+        descricao:
           type: string
           example: "Desenvolver um módulo de autenticação"
-        created_by:
+        criado_por:
           type: integer
           example: 2
-        created_at:
+        criado_em:
           type: string
           format: date-time
           example: "2025-03-22T10:00:00Z"
-        status:
+        estado:
           type: string
-          enum: [unassigned, assigned, completed]
-          example: "unassigned"
+          enum: [nao_atribuida, atribuida, concluida]
+          example: "nao_atribuida"
       required:
-        - job_id
-        - description
-        - created_by
-        - status
+        - tarefa_id
+        - descricao
+        - criado_por
+        - estado
 
-    JobAssignment:
+    Atribuicao:
       type: object
       properties:
-        assignment_id:
+        atribuicao_id:
           type: integer
           example: 1
-        job_id:
+        tarefa_id:
           type: integer
           example: 1
-        assigned_to:
+        atribuido_a:
           type: integer
           example: 4
-        assigned_by:
+        atribuido_por:
           type: integer
           example: 3
-        start_time:
+        hora_inicio:
           type: string
           format: date-time
           nullable: true
           example: null
-        end_time:
+        hora_fim:
           type: string
           format: date-time
           nullable: true
           example: null
       required:
-        - assignment_id
-        - job_id
-        - assigned_to
-        - assigned_by
+        - atribuicao_id
+        - tarefa_id
+        - atribuido_a
+        - atribuido_por
 
-    Error:
+    Erro:
       type: object
       properties:
-        message:
+        mensagem:
           type: string
           example: "Acesso não autorizado"
       required:
-        - message
+        - mensagem
 
 security:
   - bearerAuth: []
 
 paths:
-  /users:
+  /utilizadores:
     post:
       summary: Criar um novo utilizador (apenas Admin)
       tags:
@@ -140,39 +140,39 @@ paths:
             schema:
               type: object
               properties:
-                username:
+                nome_utilizador:
                   type: string
                   example: "programador2"
-                password:
+                palavra_passe:
                   type: string
-                  example: "senha_segura123"
+                  example: "palavra_passe_segura123"
                 email:
                   type: string
                   example: "programador2@exemplo.com"
-                role:
+                funcao:
                   type: string
-                  enum: [admin, manager, team_leader, programmer]
-                  example: "programmer"
+                  enum: [admin, gerente, lider_equipa, programador]
+                  example: "programador"
               required:
-                - username
-                - password
+                - nome_utilizador
+                - palavra_passe
                 - email
-                - role
+                - funcao
       responses:
         '201':
           description: Utilizador criado com sucesso
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
+                $ref: '#/components/schemas/Utilizador'
         '403':
           description: Proibido (não é admin)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/Erro'
 
-  /users/{user_id}/skills:
+  /utilizadores/{utilizador_id}/competencias:
     post:
       summary: Adicionar uma competência ao perfil de um programador (apenas Programador)
       tags:
@@ -180,7 +180,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: user_id
+        - name: utilizador_id
           in: path
           required: true
           schema:
@@ -193,26 +193,80 @@ paths:
             schema:
               type: object
               properties:
-                skill_id:
+                competencia_id:
                   type: integer
                   example: 2
               required:
-                - skill_id
+                - competencia_id
       responses:
         '201':
           description: Competência adicionada com sucesso
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Skill'
+                $ref: '#/components/schemas/Competencia'
         '403':
           description: Proibido (não é o programador)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/Erro'
 
-  /jobs:
+  /utilizadores/{utilizador_id}/palavra_passe:
+    patch:
+      summary: Alterar a palavra-passe do utilizador (qualquer utilizador autenticado)
+      tags:
+        - Utilizadores
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: utilizador_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                palavra_passe_atual:
+                  type: string
+                  example: "palavra_passe123"
+                nova_palavra_passe:
+                  type: string
+                  example: "nova_palavra_passe456"
+              required:
+                - palavra_passe_atual
+                - nova_palavra_passe
+      responses:
+        '200':
+          description: Palavra-passe alterada com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mensagem:
+                    type: string
+                    example: "Palavra-passe alterada com sucesso"
+        '400':
+          description: Palavra-passe atual incorreta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+        '403':
+          description: Proibido (não é o próprio utilizador)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+  /tarefas:
     post:
       summary: Criar uma nova tarefa (apenas Gerente)
       tags:
@@ -226,24 +280,24 @@ paths:
             schema:
               type: object
               properties:
-                description:
+                descricao:
                   type: string
-                  example: "Corrigir bug na página inicial"
+                  example: "Corrigir erro na página inicial"
               required:
-                - description
+                - descricao
       responses:
         '201':
           description: Tarefa criada com sucesso
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Job'
+                $ref: '#/components/schemas/Tarefa'
         '403':
           description: Proibido (não é gerente)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/Erro'
 
     get:
       summary: Listar tarefas (Gerente vê as suas, Líder de Equipa vê todas)
@@ -259,15 +313,15 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Job'
+                  $ref: '#/components/schemas/Tarefa'
         '403':
           description: Proibido (não é gerente nem líder de equipa)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/Erro'
 
-  /jobs/{job_id}:
+  /tarefas/{tarefa_id}:
     put:
       summary: Atualizar uma tarefa não atribuída (apenas Gerente)
       tags:
@@ -275,7 +329,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: job_id
+        - name: tarefa_id
           in: path
           required: true
           schema:
@@ -288,24 +342,24 @@ paths:
             schema:
               type: object
               properties:
-                description:
+                descricao:
                   type: string
                   example: "Atualizar módulo de autenticação"
               required:
-                - description
+                - descricao
       responses:
         '200':
           description: Tarefa atualizada com sucesso
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Job'
+                $ref: '#/components/schemas/Tarefa'
         '403':
           description: Proibido (não é gerente ou tarefa já atribuída)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/Erro'
 
     delete:
       summary: Eliminar uma tarefa não atribuída (apenas Gerente)
@@ -314,7 +368,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: job_id
+        - name: tarefa_id
           in: path
           required: true
           schema:
@@ -328,9 +382,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/Erro'
 
-  /assignments:
+  /atribuicoes:
     post:
       summary: Atribuir uma tarefa a um programador (apenas Líder de Equipa)
       tags:
@@ -344,36 +398,36 @@ paths:
             schema:
               type: object
               properties:
-                job_id:
+                tarefa_id:
                   type: integer
                   example: 1
-                assigned_to:
+                atribuido_a:
                   type: integer
                   example: 4
               required:
-                - job_id
-                - assigned_to
+                - tarefa_id
+                - atribuido_a
       responses:
         '201':
           description: Tarefa atribuída com sucesso
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JobAssignment'
+                $ref: '#/components/schemas/Atribuicao'
         '403':
           description: Proibido (não é líder de equipa)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/Erro'
         '409':
           description: Conflito (programador tem uma tarefa ativa)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/Erro'
 
-  /assignments/{assignment_id}:
+  /atribuicoes/{atribuicao_id}:
     patch:
       summary: Atualizar horário de início/fim de uma atribuição (apenas Programador)
       tags:
@@ -381,7 +435,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: assignment_id
+        - name: atribuicao_id
           in: path
           required: true
           schema:
@@ -394,12 +448,12 @@ paths:
             schema:
               type: object
               properties:
-                start_time:
+                hora_inicio:
                   type: string
                   format: date-time
                   nullable: true
                   example: "2025-04-01T09:00:00Z"
-                end_time:
+                hora_fim:
                   type: string
                   format: date-time
                   nullable: true
@@ -410,10 +464,10 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JobAssignment'
+                $ref: '#/components/schemas/Atribuicao'
         '403':
           description: Proibido (não é programador)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/Erro'
