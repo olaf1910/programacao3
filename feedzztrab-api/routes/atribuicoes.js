@@ -40,7 +40,7 @@ router.patch('/:atribuicao_id', autenticar, verificarFuncao([Funcoes.PROGRAMADOR
     if (!inicio && !fim) return res.status(400).json({ mensagem: 'Dados inválidos' });
 
     try {
-        const [atribuicao] = await conexao.query('SELECT * FROM Tarefas_Atribuicoes WHERE tarefa_id = ? AND atribuido_a = ?', [atribuicao_id, req.utilizador.utilizador_id]);
+        const [atribuicao] = await conexao.query('SELECT * FROM Tarefas_Atribuicoes WHERE id = ?', [atribuicao_id]);
         if (!atribuicao[0]) return res.status(404).json({ mensagem: 'Atribuição não encontrada' });
         
         if (inicio && atribuicao[0].inicio && !fim) return res.status(400).json({ mensagem: 'A tarefa já está iniciada' });

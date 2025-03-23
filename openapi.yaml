@@ -51,12 +51,12 @@ components:
           id:
             type: integer
             example: 1
-          nome_competencia:
+          nome:
             type: string
             example: "Desenvolvimento Web"
       required:
         - id
-        - nome_competencia
+        - nome
 
     Tarefa:
       type: object
@@ -76,7 +76,7 @@ components:
           example: "2025-03-22T10:00:00Z"
         estado:
           type: string
-          enum: [nao_atribuida, atribuida, concluida]
+          enum: [nao_atribuida, atribuida, em_progresso, concluida]
           example: "nao_atribuida"
         atribuido_id:
           type: integer

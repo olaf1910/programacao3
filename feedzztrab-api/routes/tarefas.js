@@ -64,9 +64,15 @@ router.put('/:tarefa_id', autenticar, verificarFuncao([Funcoes.GERENTE]), async 
     try {
         const [tarefa] = await conexao.query('SELECT * FROM Tarefas WHERE id = ? AND criado_por = ?', [tarefa_id, req.utilizador.utilizador_id]);
         if (!tarefa[0]) return res.status(404).json({ mensagem: 'Tarefa não encontrada' });
-        if (tarefa[0].estado !== 'unassigned') return res.status(403).json({ mensagem: 'Tarefa já atribuída' });
+        if (tarefa[0].estado !== 'nao_atribuida') return res.status(403).json({ mensagem: 'Tarefa já atribuída' });
         await conexao.query('UPDATE Tarefas SET descricao = ? WHERE id = ?', [descricao, tarefa_id]);
-        res.json({ ...tarefa[0], descricao });
+        let consulta = `SELECT t.*, u.id as atribuido_id, u.nome_utilizador as atribuido_nome, a.inicio, a.fim 
+                        FROM Tarefas t 
+                        LEFT OUTER JOIN Tarefas_Atribuicoes a ON t.id = a.tarefa_id 
+                        LEFT OUTER JOIN Utilizadores u ON a.atribuido_a = u.id
+                        WHERE t.id = ?`;
+        const [tarefaUpdated] = await conexao.query(consulta, [tarefa_id]);
+        res.json(tarefaUpdated[0]);
     } catch (erro) {
         let mensagem;
         switch (erro.code) {
