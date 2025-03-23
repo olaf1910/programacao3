@@ -7,13 +7,13 @@ const Funcoes = require('../config/funcoes');
 router.post('/', autenticar, verificarFuncao([Funcoes.LIDER_EQUIPA]), async (req, res) => {
     const { tarefa_id, atribuido_a } = req.body;
     try {
-        const [tarefa] = await conexao.query('SELECT * FROM Jobs WHERE job_id = ?', [tarefa_id]);
-        if (!tarefa[0] || tarefa[0].status !== 'unassigned') return res.status(400).json({ mensagem: 'Tarefa inválida ou já atribuída' });
-        const [ativa] = await conexao.query('SELECT COUNT(*) as ativa FROM Job_Assignments WHERE assigned_to = ? AND start_time IS NOT NULL AND end_time IS NULL', [atribuido_a]);
+        const [tarefa] = await conexao.query('SELECT * FROM Tarefas WHERE id = ?', [tarefa_id]);
+        if (!tarefa[0] || tarefa[0].estado !== 'nao_atribuida') return res.status(400).json({ mensagem: 'Tarefa inválida ou já atribuída' });
+        const [ativa] = await conexao.query('SELECT COUNT(*) as ativa FROM Tarefas_Atribuicoes WHERE atribuido_a = ? AND inicio IS NOT NULL AND fim IS NULL', [atribuido_a]);
         if (ativa[0].ativa > 0) return res.status(409).json({ mensagem: 'Conflito: programador tem uma tarefa ativa' });
-        const [resultado] = await conexao.query('INSERT INTO Job_Assignments (job_id, assigned_to, assigned_by) VALUES (?, ?, ?)', [tarefa_id, atribuido_a, req.utilizador.utilizador_id]);
-        await conexao.query('UPDATE Jobs SET status = "assigned" WHERE job_id = ?', [tarefa_id]);
-        res.status(201).json({ atribuicao_id: resultado.insertId, tarefa_id, atribuido_a, atribuido_por: req.utilizador.utilizador_id });
+        const [resultado] = await conexao.query('INSERT INTO Tarefas_Atribuicoes (tarefa_id, atribuido_a, atribuido_por) VALUES (?, ?, ?)', [tarefa_id, atribuido_a, req.utilizador.utilizador_id]);
+        await conexao.query('UPDATE Tarefas SET estado = "atribuida" WHERE id = ?', [tarefa_id]);
+        res.status(201).json({ id: resultado.insertId, tarefa_id, atribuido_a, atribuido_por: req.utilizador.utilizador_id, inicio: null, fim: null });
     } catch (erro) {
         let mensagem;
         switch (erro.code) {
@@ -35,13 +35,36 @@ router.post('/', autenticar, verificarFuncao([Funcoes.LIDER_EQUIPA]), async (req
 
 router.patch('/:atribuicao_id', autenticar, verificarFuncao([Funcoes.PROGRAMADOR]), async (req, res) => {
     const { atribuicao_id } = req.params;
-    const { hora_inicio, hora_fim } = req.body;
+    const { inicio, fim } = req.body;
+    if (!atribuicao_id) return res.status(400).json({ mensagem: 'Tem de indicar o id da atribuicao' });
+    if (!inicio && !fim) return res.status(400).json({ mensagem: 'Dados inválidos' });
+
     try {
-        const [atribuicao] = await conexao.query('SELECT * FROM Job_Assignments WHERE assignment_id = ? AND assigned_to = ?', [atribuicao_id, req.utilizador.utilizador_id]);
+        const [atribuicao] = await conexao.query('SELECT * FROM Tarefas_Atribuicoes WHERE tarefa_id = ? AND atribuido_a = ?', [atribuicao_id, req.utilizador.utilizador_id]);
         if (!atribuicao[0]) return res.status(404).json({ mensagem: 'Atribuição não encontrada' });
-        await conexao.query('UPDATE Job_Assignments SET start_time = ?, end_time = ? WHERE assignment_id = ?', [hora_inicio || atribuicao[0].start_time, hora_fim || atribuicao[0].end_time, atribuicao_id]);
-        if (hora_fim) await conexao.query('UPDATE Jobs SET status = "completed" WHERE job_id = ?', [atribuicao[0].job_id]);
-        const [atualizada] = await conexao.query('SELECT * FROM Job_Assignments WHERE assignment_id = ?', [atribuicao_id]);
+        
+        if (inicio && atribuicao[0].inicio && !fim) return res.status(400).json({ mensagem: 'A tarefa já está iniciada' });
+        if (fim && atribuicao[0].fim) return res.status(400).json({ mensagem: 'A tarefa já está concluida' });
+
+        if ( fim && (inicio || atribuicao[0].inicio) > new Date(fim)) return res.status(400).json({ mensagem: 'O fim deve ser posterior ao início' });
+        
+        if (inicio && !fim) {
+            await conexao.query('UPDATE Tarefas_Atribuicoes SET inicio = ? WHERE id = ?', [new Date(inicio).toISOString().slice(0, 19).replace('T', ' ') || atribuicao[0].inicio, atribuicao_id]);
+        } else {
+            if (!inicio && fim) {
+                await conexao.query('UPDATE Tarefas_Atribuicoes SET fim = ? WHERE id = ?', [new Date(fim).toISOString().slice(0, 19).replace('T', ' ') || atribuicao[0].fim, atribuicao_id]);
+            } else {
+                await conexao.query('UPDATE Tarefas_Atribuicoes SET inicio = ?, fim = ? WHERE id = ?', [new Date(inicio).toISOString().slice(0, 19).replace('T', ' ') || atribuicao[0].inicio, new Date(fim).toISOString().slice(0, 19).replace('T', ' ') || atribuicao[0].fim, atribuicao_id]);
+            }
+        }
+        if (inicio && !fim) await conexao.query('UPDATE Tarefas SET estado = "em_progresso" WHERE id = ?', [atribuicao[0].tarefa_id]);
+        
+        if (fim) await conexao.query('UPDATE Tarefas SET estado = "concluida" WHERE id = ?', [atribuicao[0].tarefa_id]);
+        const [atualizada] = await conexao.query(`SELECT t.*, u.id as atribuido_id, u.nome_utilizador as atribuido_nome, a.inicio, a.fim 
+                        FROM Tarefas t 
+                        LEFT OUTER JOIN Tarefas_Atribuicoes a ON t.id = a.tarefa_id 
+                        LEFT OUTER JOIN Utilizadores u ON a.atribuido_a = u.id
+                        WHERE t.id = ?`, [atribuicao[0].tarefa_id]);
         res.json(atualizada[0]);
     } catch (erro) {
         let mensagem;

@@ -39,10 +39,10 @@ router.post('/', autenticar, verificarFuncao([Funcoes.ADMIN]), async (req, res) 
     try {
         const palavraPasseHash = await bcrypt.hash(palavra_passe, 10);
         const [resultado] = await conexao.query(
-            'INSERT INTO Users (username, password_hash, email, role_id) VALUES (?, ?, ?, (SELECT role_id FROM Roles WHERE role_name = ?))',
+            'INSERT INTO Utilizadores (nome_utilizador, password_hash, email, funcao_id) VALUES (?, ?, ?, (SELECT id FROM Funcoes WHERE nome = ?))',
             [nome_utilizador, palavraPasseHash, email, funcao]
         );
-        const utilizador = { utilizador_id: resultado.insertId, nome_utilizador, email, funcao };
+        const utilizador = { id: resultado.insertId, nome_utilizador, email, funcao };
         res.status(201).json(utilizador);
     } catch (erro) {
         let mensagem;
@@ -71,10 +71,10 @@ router.post('/login', async (req, res) => {
     const { nome_utilizador, palavra_passe } = req.body;
     try {
         const [utilizadores] = await conexao.query(
-            'SELECT u.user_id, u.username, u.password_hash, r.role_name ' +
-            'FROM Users u ' +
-            'JOIN Roles r ON u.role_id = r.role_id ' +
-            'WHERE u.username = ?',
+            'SELECT u.id, u.nome_utilizador, u.password_hash, r.nome as funcao_nome ' +
+            'FROM Utilizadores u ' +
+            'JOIN Funcoes r ON u.funcao_id = r.id ' +
+            'WHERE u.nome_utilizador = ?',
             [nome_utilizador]
         );
         const utilizador = utilizadores[0];
@@ -83,7 +83,7 @@ router.post('/login', async (req, res) => {
         }
 
         const token = jwt.sign(
-            { utilizador_id: utilizador.user_id, funcao: utilizador.role_name },
+            { utilizador_id: utilizador.id, funcao: utilizador.funcao_nome },
             process.env.JWT_SECRET
         );
         res.json({ token });
@@ -124,7 +124,7 @@ router.patch('/:utilizador_id/palavra_passe', autenticar, async (req, res) => {
     }
 
     try {
-        const [utilizadores] = await conexao.query('SELECT * FROM Users WHERE user_id = ?', [utilizador_id]);
+        const [utilizadores] = await conexao.query('SELECT * FROM Utilizadores WHERE id = ?', [utilizador_id]);
         const utilizador = utilizadores[0];
         if (!utilizador) return res.status(404).json({ mensagem: 'Utilizador não encontrado' });
 
@@ -134,7 +134,7 @@ router.patch('/:utilizador_id/palavra_passe', autenticar, async (req, res) => {
         }
 
         const novaPalavraPasseHash = await bcrypt.hash(nova_palavra_passe, 10);
-        await conexao.query('UPDATE Users SET password_hash = ? WHERE user_id = ?', [novaPalavraPasseHash, utilizador_id]);
+        await conexao.query('UPDATE Utilizadores SET password_hash = ? WHERE id = ?', [novaPalavraPasseHash, utilizador_id]);
 
         res.status(200).json({ mensagem: 'Palavra-passe alterada com sucesso' });
     } catch (erro) {

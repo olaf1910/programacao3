@@ -1,95 +1,66 @@
--- Drop existing tables if they exist (optional, to start fresh)
-DROP TABLE IF EXISTS Job_Assignments, Jobs, User_Skills, Skills, Users, Roles;
+DROP TABLE IF EXISTS Tarefas_Atribuicoes, Tarefas, Competencias_Utilizadores, Competencias, Utilizadores, Funcoes;
 
--- 1. Roles Table
-CREATE TABLE Roles (
-    role_id INT AUTO_INCREMENT PRIMARY KEY,
-    role_name ENUM('admin', 'gerente', 'lider_equipa', 'programador') NOT NULL UNIQUE
+CREATE TABLE Funcoes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nome ENUM('admin', 'gerente', 'lider_equipa', 'programador') NOT NULL UNIQUE
 )
 CHARACTER SET utf8mb4
 COLLATE utf8mb4_unicode_ci;
+INSERT INTO Funcoes (nome) VALUES ('admin'), ('gerente'), ('lider_equipa'), ('programador');
 
--- 2. Users Table
-CREATE TABLE Users (
-    user_id INT AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(50) NOT NULL UNIQUE,
+CREATE TABLE Utilizadores (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nome_utilizador VARCHAR(50) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     email VARCHAR(100) NOT NULL UNIQUE,
-    role_id INT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (role_id) REFERENCES Roles(role_id) ON DELETE RESTRICT
+    funcao_id INT NOT NULL,
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (funcao_id) REFERENCES Funcoes(id) ON DELETE RESTRICT
+)
+CHARACTER SET utf8mb4
+COLLATE utf8mb4_unicode_ci;
+CREATE INDEX idx_nome ON Utilizadores(nome_utilizador);
+INSERT INTO Utilizadores (nome_utilizador, password_hash, email, funcao_id) VALUES
+('admin_user', '$2a$12$0.6UjFsJ7gGtWEBzsUqAv.9iGL5mm8hZEdJ50HHQi2/MHrAR4sjgS', 'admin@exemplo.com', 1);
+
+CREATE TABLE Competencias (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(50) NOT NULL UNIQUE
 )
 CHARACTER SET utf8mb4
 COLLATE utf8mb4_unicode_ci;
 
-CREATE INDEX idx_username ON Users(username);
-
--- 3. Skills Table
-CREATE TABLE Skills (
-    skill_id INT AUTO_INCREMENT PRIMARY KEY,
-    skill_name VARCHAR(50) NOT NULL UNIQUE
+CREATE TABLE Competencias_Utilizadores (
+    utilizador_id INT,
+    competencia_id INT,
+    PRIMARY KEY (utilizador_id, competencia_id),
+    FOREIGN KEY (utilizador_id) REFERENCES Utilizadores(id) ON DELETE CASCADE,
+    FOREIGN KEY (competencia_id) REFERENCES Competencias(id) ON DELETE CASCADE
 )
 CHARACTER SET utf8mb4
 COLLATE utf8mb4_unicode_ci;
 
--- 4. User_Skills Table
-CREATE TABLE User_Skills (
-    user_id INT,
-    skill_id INT,
-    PRIMARY KEY (user_id, skill_id),
-    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
-    FOREIGN KEY (skill_id) REFERENCES Skills(skill_id) ON DELETE CASCADE
+CREATE TABLE Tarefas (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    descricao TEXT NOT NULL,
+    criado_por INT NOT NULL,
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    estado ENUM('nao_atribuida', 'atribuida', 'em_progresso', 'concluida') DEFAULT 'nao_atribuida',
+    FOREIGN KEY (criado_por) REFERENCES Utilizadores(id) ON DELETE RESTRICT
 )
 CHARACTER SET utf8mb4
 COLLATE utf8mb4_unicode_ci;
 
--- 5. Jobs Table
-CREATE TABLE Jobs (
-    job_id INT AUTO_INCREMENT PRIMARY KEY,
-    description TEXT NOT NULL,
-    created_by INT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    status ENUM('unassigned', 'assigned', 'completed') DEFAULT 'unassigned',
-    FOREIGN KEY (created_by) REFERENCES Users(user_id) ON DELETE RESTRICT
+CREATE TABLE Tarefas_Atribuicoes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    tarefa_id INT NOT NULL,
+    atribuido_a INT NOT NULL,
+    atribuido_por INT NOT NULL,
+    inicio DATETIME,
+    fim DATETIME,
+    FOREIGN KEY (tarefa_id) REFERENCES Tarefas(id) ON DELETE RESTRICT,
+    FOREIGN KEY (atribuido_a) REFERENCES Utilizadores(id) ON DELETE RESTRICT,
+    FOREIGN KEY (atribuido_por) REFERENCES Utilizadores(id) ON DELETE RESTRICT
 )
 CHARACTER SET utf8mb4
 COLLATE utf8mb4_unicode_ci;
-
--- 6. Job_Assignments Table
-CREATE TABLE Job_Assignments (
-    assignment_id INT AUTO_INCREMENT PRIMARY KEY,
-    job_id INT NOT NULL,
-    assigned_to INT NOT NULL,
-    assigned_by INT NOT NULL,
-    start_time DATETIME,
-    end_time DATETIME,
-    FOREIGN KEY (job_id) REFERENCES Jobs(job_id) ON DELETE RESTRICT,
-    FOREIGN KEY (assigned_to) REFERENCES Users(user_id) ON DELETE RESTRICT,
-    FOREIGN KEY (assigned_by) REFERENCES Users(user_id) ON DELETE RESTRICT
-)
-CHARACTER SET utf8mb4
-COLLATE utf8mb4_unicode_ci;
-
--- Insert initial data to test the database
--- Insert roles
-INSERT INTO Roles (role_name) VALUES ('admin'), ('gerente'), ('lider_equipa'), ('programador');
-
--- Insert sample users with Portuguese-friendly characters
--- todas as password para senha123 encriptada
-INSERT INTO Users (username, password_hash, email, role_id) VALUES
-('admin_user', '$2a$12$86gMTbosi8QLgf.gQt09MeNYWksfTcCwKU3A6uGYTE3jidHjuw3Vq', 'admin@exemplo.com', 1),
-('gerente1', '$2a$12$86gMTbosi8QLgf.gQt09MeNYWksfTcCwKU3A6uGYTE3jidHjuw3Vq', 'gerente1@exemplo.com', 2),
-('líder_equipa1', '$2a$12$86gMTbosi8QLgf.gQt09MeNYWksfTcCwKU3A6uGYTE3jidHjuw3Vq', 'lider1@exemplo.com', 3),
-('programador1', '$2a$12$86gMTbosi8QLgf.gQt09MeNYWksfTcCwKU3A6uGYTE3jidHjuw3Vq', 'programador1@exemplo.com', 4);
-
--- Insert sample skills with Portuguese terms
-INSERT INTO Skills (skill_name) VALUES ('Java'), ('Python'), ('Desenvolvimento Web');
-
--- Insert user skills for programmer1
-INSERT INTO User_Skills (user_id, skill_id) VALUES (4, 1), (4, 3);
-
--- Insert a sample job by gerente1 with Portuguese description
-INSERT INTO Jobs (description, created_by) VALUES ('Desenvolver um módulo de autenticação', 2);
-
--- Assign the job to programador1 by líder_equipa1
-INSERT INTO Job_Assignments (job_id, assigned_to, assigned_by) VALUES (1, 4, 3);

@@ -7,9 +7,13 @@ const Funcoes = require('../config/funcoes');
 router.post('/', autenticar, verificarFuncao([Funcoes.GERENTE]), async (req, res) => {
     const { descricao } = req.body;
     try {
-        const [resultado] = await conexao.query('INSERT INTO Jobs (description, created_by) VALUES (?, ?)', [descricao, req.utilizador.utilizador_id]);
-        const tarefa = { tarefa_id: resultado.insertId, descricao, criado_por: req.utilizador.utilizador_id, estado: 'nao_atribuida' };
-        res.status(201).json(tarefa);
+        const [resultado] = await conexao.query('INSERT INTO Tarefas (descricao, criado_por) VALUES (?, ?)', [descricao, req.utilizador.utilizador_id]);
+        const [novatarefa] = await conexao.query(`SELECT t.*, u.id as atribuido_id, u.nome_utilizador as atribuido_nome, a.inicio, a.fim 
+                        FROM Tarefas t 
+                        LEFT OUTER JOIN Tarefas_Atribuicoes a ON t.id = a.tarefa_id 
+                        LEFT OUTER JOIN Utilizadores u ON a.atribuido_a = u.id
+                        WHERE t.id = ?`, [resultado.insertId]);
+        res.status(201).json(novatarefa[0]);
     } catch (erro) {
         let mensagem;
         switch (erro.code) {
@@ -28,9 +32,14 @@ router.post('/', autenticar, verificarFuncao([Funcoes.GERENTE]), async (req, res
 
 router.get('/', autenticar, verificarFuncao([Funcoes.GERENTE, Funcoes.LIDER_EQUIPA]), async (req, res) => {
     try {
-        const consulta = req.utilizador.funcao === Funcoes.GERENTE
-            ? 'SELECT * FROM Jobs WHERE created_by = ?'
-            : 'SELECT * FROM Jobs';
+        let consulta = `SELECT t.*, u.id as atribuido_id, u.nome_utilizador as atribuido_nome, a.inicio, a.fim 
+                        FROM Tarefas t 
+                        LEFT OUTER JOIN Tarefas_Atribuicoes a ON t.id = a.tarefa_id 
+                        LEFT OUTER JOIN Utilizadores u ON a.atribuido_a = u.id`;
+        if (req.utilizador.funcao === Funcoes.GERENTE) {
+            consulta += ` WHERE t.criado_por = ?`;  
+        }
+        consulta += ';';
         const [tarefas] = await conexao.query(consulta, req.utilizador.funcao === Funcoes.GERENTE ? [req.utilizador.utilizador_id] : []);
         res.json(tarefas);
     } catch (erro) {
@@ -53,10 +62,10 @@ router.put('/:tarefa_id', autenticar, verificarFuncao([Funcoes.GERENTE]), async 
     const { tarefa_id } = req.params;
     const { descricao } = req.body;
     try {
-        const [tarefa] = await conexao.query('SELECT * FROM Jobs WHERE job_id = ? AND created_by = ?', [tarefa_id, req.utilizador.utilizador_id]);
+        const [tarefa] = await conexao.query('SELECT * FROM Tarefas WHERE id = ? AND criado_por = ?', [tarefa_id, req.utilizador.utilizador_id]);
         if (!tarefa[0]) return res.status(404).json({ mensagem: 'Tarefa não encontrada' });
-        if (tarefa[0].status !== 'unassigned') return res.status(403).json({ mensagem: 'Tarefa já atribuída' });
-        await conexao.query('UPDATE Jobs SET description = ? WHERE job_id = ?', [descricao, tarefa_id]);
+        if (tarefa[0].estado !== 'unassigned') return res.status(403).json({ mensagem: 'Tarefa já atribuída' });
+        await conexao.query('UPDATE Tarefas SET descricao = ? WHERE id = ?', [descricao, tarefa_id]);
         res.json({ ...tarefa[0], descricao });
     } catch (erro) {
         let mensagem;
@@ -77,10 +86,10 @@ router.put('/:tarefa_id', autenticar, verificarFuncao([Funcoes.GERENTE]), async 
 router.delete('/:tarefa_id', autenticar, verificarFuncao([Funcoes.GERENTE]), async (req, res) => {
     const { tarefa_id } = req.params;
     try {
-        const [tarefa] = await conexao.query('SELECT * FROM Jobs WHERE job_id = ? AND created_by = ?', [tarefa_id, req.utilizador.utilizador_id]);
+        const [tarefa] = await conexao.query('SELECT * FROM Tarefas WHERE id = ? AND criado_por = ?', [tarefa_id, req.utilizador.utilizador_id]);
         if (!tarefa[0]) return res.status(404).json({ mensagem: 'Tarefa não encontrada' });
-        if (tarefa[0].status !== 'unassigned') return res.status(403).json({ mensagem: 'Tarefa já atribuída' });
-        await conexao.query('DELETE FROM Jobs WHERE job_id = ?', [tarefa_id]);
+        if (tarefa[0].estado !== 'nao_atribuida') return res.status(403).json({ mensagem: 'Tarefa já atribuída' });
+        await conexao.query('DELETE FROM Tarefas WHERE id = ?', [tarefa_id]);
         res.status(204).send();
     } catch (erro) {
         let mensagem;
