@@ -1,12 +1,12 @@
 const jwt = require('jsonwebtoken');
 
 const autenticar = (req, res, next) => {
-    const token = req.headers['authorization']?.split(' ')[1]; // Bearer <token>
+    const token = req.headers['authorization']?.split(' ')[1];
     if (!token) return res.status(401).json({ mensagem: 'Token não fornecido' });
 
     jwt.verify(token, process.env.JWT_SECRET, (erro, utilizador) => {
         if (erro) return res.status(403).json({ mensagem: 'Token inválido' });
-        req.utilizador = utilizador; // { utilizador_id, funcao }
+        req.utilizador = utilizador;
         next();
     });
 };
