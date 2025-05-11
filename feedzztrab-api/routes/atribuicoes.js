@@ -42,6 +42,10 @@ router.patch('/:atribuicao_id', autenticar, verificarFuncao([Funcoes.PROGRAMADOR
     try {
         const [atribuicao] = await conexao.query('SELECT * FROM Tarefas_Atribuicoes WHERE id = ?', [atribuicao_id]);
         if (!atribuicao[0]) return res.status(404).json({ mensagem: 'Atribuição não encontrada' });
+
+        if (atribuicao[0].atribuido_a !== req.utilizador.utilizador_id) {
+            return res.status(403).json({ mensagem: 'Proibido: só pode atualizar as suas próprias atribuições.' });
+        }
         
         if (inicio && atribuicao[0].inicio && !fim) return res.status(400).json({ mensagem: 'A tarefa já está iniciada' });
         if (fim && atribuicao[0].fim) return res.status(400).json({ mensagem: 'A tarefa já está concluida' });
