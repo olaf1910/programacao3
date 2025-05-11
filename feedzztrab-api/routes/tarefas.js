@@ -30,9 +30,15 @@ router.post('/', autenticar, verificarFuncao([Funcoes.GERENTE]), async (req, res
     }
 });
 
-router.get('/', autenticar, verificarFuncao([Funcoes.GERENTE, Funcoes.LIDER_EQUIPA]), async (req, res) => {
+router.get('/', autenticar, verificarFuncao([Funcoes.GERENTE, Funcoes.LIDER_EQUIPA, Funcoes.PROGRAMADOR]), async (req, res) => {
     try {
-        let consulta = `SELECT t.*, u.id as atribuido_id, u.nome_utilizador as atribuido_nome, a.inicio, a.fim 
+        let consulta = `SELECT 
+                            t.*, 
+                            u.id as utilizador_atribuido_id, 
+                            u.nome_utilizador as utilizador_atribuido_nome, 
+                            a.id as atribuicao_id, 
+                            a.inicio, 
+                            a.fim 
                         FROM Tarefas t 
                         LEFT OUTER JOIN Tarefas_Atribuicoes a ON t.id = a.tarefa_id 
                         LEFT OUTER JOIN Utilizadores u ON a.atribuido_a = u.id`;

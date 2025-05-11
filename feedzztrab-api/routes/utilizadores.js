@@ -83,7 +83,7 @@ router.post('/login', async (req, res) => {
         }
 
         const token = jwt.sign(
-            { utilizador_id: utilizador.id, funcao: utilizador.funcao_nome },
+            { utilizador_id: utilizador.id, nome_utilizador: utilizador.nome_utilizador , funcao: utilizador.funcao_nome },
             process.env.JWT_SECRET
         );
         res.json({ token });
@@ -151,6 +151,183 @@ router.patch('/:utilizador_id/palavra_passe', autenticar, async (req, res) => {
                 break;
             default:
                 mensagem = erro.message;
+        }
+        res.status(500).json({ mensagem });
+    }
+});
+
+// Rota para buscar todos os utilizadores
+router.get('/', autenticar, verificarFuncao([Funcoes.ADMIN, Funcoes.LIDER_EQUIPA]), async (req, res) => {
+    try {
+        const consulta = `
+            SELECT 
+                u.id, 
+                u.nome_utilizador, 
+                u.email, 
+                f.nome as funcao, 
+                u.criado_em 
+            FROM Utilizadores u
+            JOIN Funcoes f ON u.funcao_id = f.id
+            ORDER BY u.id ASC;
+        `;
+        const [utilizadores] = await conexao.query(consulta);
+        
+        res.json(utilizadores);
+
+    } catch (erro) {
+        console.error('Erro ao obter todos os utilizadores:', erro);
+        let mensagem = 'Erro interno do servidor ao obter utilizadores.';
+        switch (erro.code) {
+            case 'ER_ACCESS_DENIED_ERROR':
+                mensagem = 'Acesso negado à base de dados.';
+                break;
+            case 'ER_NO_SUCH_TABLE':
+                mensagem = 'Tabela não encontrada na base de dados.';
+                break;
+        }
+        res.status(500).json({ mensagem });
+    }
+});
+
+// ROTA PARA BUSCAR UM UTILIZADOR ESPECÍFICO POR ID
+router.get('/:utilizador_id', autenticar, async (req, res) => {
+    const idParaBuscar = parseInt(req.params.utilizador_id);
+    const idUtilizadorAutenticado = parseInt(req.utilizador.utilizador_id);
+    const funcaoUtilizadorAutenticado = req.utilizador.funcao;
+
+    // Permitir acesso se for o próprio utilizador ou se for um admin
+    if (idUtilizadorAutenticado !== idParaBuscar && funcaoUtilizadorAutenticado !== Funcoes.ADMIN) {
+        return res.status(403).json({ mensagem: 'Acesso proibido. Não tem permissão para ver os detalhes deste utilizador.' });
+    }
+
+    try {
+        const consulta = `
+            SELECT 
+                u.id, 
+                u.nome_utilizador, 
+                u.email, 
+                f.nome as funcao, 
+                u.criado_em
+            FROM Utilizadores u
+            JOIN Funcoes f ON u.funcao_id = f.id
+            WHERE u.id = ?;
+        `;
+        const [utilizadores] = await conexao.query(consulta, [idParaBuscar]);
+
+        if (utilizadores.length === 0) {
+            return res.status(404).json({ mensagem: 'Utilizador não encontrado.' });
+        }
+
+        // Não retornar password_hash
+        res.json(utilizadores[0]);
+
+    } catch (erro) {
+        console.error(`Erro ao buscar utilizador ${idParaBuscar}:`, erro);
+        res.status(500).json({ mensagem: 'Erro interno do servidor ao buscar utilizador.' });
+    }
+});
+
+// ROTA PARA ATUALIZAR UM UTILIZADOR (APENAS ADMIN)
+router.put('/:utilizador_id', autenticar, verificarFuncao([Funcoes.ADMIN]), async (req, res) => {
+    const { utilizador_id } = req.params;
+    const { nome_utilizador, email, funcao } = req.body;
+
+    // Validações básicas de entrada
+    if (!nome_utilizador && !email && !funcao) {
+        return res.status(400).json({ mensagem: 'Pelo menos um campo (nome_utilizador, email, funcao) deve ser fornecido para atualização.' });
+    }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ mensagem: 'O email fornecido não é válido.' });
+    }
+    if (funcao) {
+        const funcoesValidas = Object.values(Funcoes); // Assumindo que Funcoes é um objeto como { ADMIN: 'admin', ... }
+        if (!funcoesValidas.includes(funcao)) {
+            return res.status(400).json({ mensagem: `A função deve ser uma das seguintes: ${funcoesValidas.join(', ')}` });
+        }
+    }
+
+    try {
+        // Verificar se o utilizador existe
+        const [utilizadoresExistentes] = await conexao.query('SELECT * FROM Utilizadores WHERE id = ?', [utilizador_id]);
+        if (utilizadoresExistentes.length === 0) {
+            return res.status(404).json({ mensagem: 'Utilizador não encontrado.' });
+        }
+
+        // Construir a query de atualização dinamicamente
+        const camposParaAtualizar = {};
+        if (nome_utilizador) camposParaAtualizar.nome_utilizador = nome_utilizador;
+        if (email) camposParaAtualizar.email = email;
+        // Para 'funcao', precisamos do ID da função
+        if (funcao) {
+            const [funcaoRow] = await conexao.query('SELECT id FROM Funcoes WHERE nome = ?', [funcao]);
+            if (funcaoRow.length === 0) {
+                return res.status(400).json({ mensagem: 'Função especificada não existe.' });
+            }
+            camposParaAtualizar.funcao_id = funcaoRow[0].id;
+        }
+        
+        if (Object.keys(camposParaAtualizar).length === 0) {
+             return res.status(400).json({ mensagem: 'Nenhum campo válido fornecido para atualização após conversão de função.' });
+        }
+
+        await conexao.query('UPDATE Utilizadores SET ? WHERE id = ?', [camposParaAtualizar, utilizador_id]);
+
+        // Retornar o utilizador atualizado
+        const [utilizadorAtualizado] = await conexao.query(
+            `SELECT u.id, u.nome_utilizador, u.email, f.nome as funcao, u.criado_em 
+             FROM Utilizadores u
+             JOIN Funcoes f ON u.funcao_id = f.id
+             WHERE u.id = ?`,
+            [utilizador_id]
+        );
+
+        res.json(utilizadorAtualizado[0]);
+
+    } catch (erro) {
+        console.error(`Erro ao atualizar utilizador ${utilizador_id}:`, erro);
+        let mensagem = 'Erro interno do servidor ao atualizar utilizador.';
+        if (erro.code === 'ER_DUP_ENTRY') {
+            mensagem = 'Nome de utilizador ou email já existe em outro registo.';
+        } else if (erro.code === 'ER_NO_REFERENCED_ROW_2' && erro.sqlMessage.includes('funcao_id')) {
+            mensagem = 'Função especificada não existe (erro de FK).'; // Improvável devido à verificação anterior
+        }
+        res.status(500).json({ mensagem });
+    }
+});
+
+
+// ROTA PARA ELIMINAR UM UTILIZADOR (APENAS ADMIN)
+router.delete('/:utilizador_id', autenticar, verificarFuncao([Funcoes.ADMIN]), async (req, res) => {
+    const { utilizador_id } = req.params;
+
+    // Prevenção: Não permitir que o admin se auto-elimine ou elimine o utilizador admin principal por esta via simples.
+    if (parseInt(req.utilizador.utilizador_id) === parseInt(utilizador_id)) {
+        return res.status(403).json({ mensagem: 'Não pode eliminar a sua própria conta de administrador por esta via.' });
+    }
+
+    try {
+        // Verificar se o utilizador existe antes de tentar eliminar
+        const [utilizadoresExistentes] = await conexao.query('SELECT id FROM Utilizadores WHERE id = ?', [utilizador_id]);
+        if (utilizadoresExistentes.length === 0) {
+            return res.status(404).json({ mensagem: 'Utilizador não encontrado.' });
+        }
+        
+        // Tentar eliminar o utilizador
+        const [resultado] = await conexao.query('DELETE FROM Utilizadores WHERE id = ?', [utilizador_id]);
+
+        if (resultado.affectedRows === 0) {
+            // Isto não deveria acontecer se a verificação acima encontrar o utilizador,
+            // mas é uma salvaguarda.
+            return res.status(404).json({ mensagem: 'Utilizador não encontrado para eliminação (ou já eliminado).' });
+        }
+
+        res.status(204).send(); // 204 No Content para sucesso na eliminação
+
+    } catch (erro) {
+        console.error(`Erro ao eliminar utilizador ${utilizador_id}:`, erro);
+        let mensagem = 'Erro interno do servidor ao eliminar utilizador.';
+        if (erro.code === 'ER_ROW_IS_REFERENCED_2') {
+            mensagem = 'Não é possível eliminar este utilizador porque ele está referenciado noutros registos (ex: tarefas, atribuições). Resolva essas dependências primeiro.';
         }
         res.status(500).json({ mensagem });
     }

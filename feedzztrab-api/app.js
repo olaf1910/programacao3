@@ -1,6 +1,7 @@
 const express = require('express');
 const app = express();
 require('dotenv').config();
+const cors = require('cors');
 
 const requiredEnv = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_DATABASE', 'JWT_SECRET'];
 requiredEnv.forEach(key => {
@@ -12,6 +13,7 @@ const competenciasRotas = require('./routes/competencias');
 const tarefasRotas = require('./routes/tarefas');
 const atribuicoesRotas = require('./routes/atribuicoes');
 
+app.use(cors());
 app.use(express.json());
 
 app.use('/api/utilizadores', utilizadoresRotas);

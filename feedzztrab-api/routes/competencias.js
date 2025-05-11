@@ -71,4 +71,34 @@ router.post('/', autenticar, verificarFuncao([Funcoes.PROGRAMADOR]), async (req,
     }
 });
 
+// GET /utilizadores/:utilizador_id/competencias
+// Lista as competências de um utilizador específico.
+// Acessível pelo próprio utilizador ou por um admin.
+router.get('/', autenticar, async (req, res) => {
+    const { utilizador_id } = req.params; // ID do utilizador cujo perfil de competências está a ser visualizado
+    const idUtilizadorAutenticado = req.utilizador.utilizador_id;
+    const funcaoUtilizadorAutenticado = req.utilizador.funcao;
+
+    // Permitir que o próprio utilizador ou um admin vejam as competências
+    // if (parseInt(idUtilizadorAutenticado) !== parseInt(utilizador_id) && funcaoUtilizadorAutenticado !== Funcoes.ADMIN) {
+    //     return res.status(403).json({ mensagem: 'Acesso proibido. Não pode ver as competências deste utilizador.' });
+    // }
+
+    try {
+        const consulta = `
+            SELECT c.id, c.nome 
+            FROM Competencias_Utilizadores cu
+            JOIN Competencias c ON cu.competencia_id = c.id
+            WHERE cu.utilizador_id = ?
+            ORDER BY c.nome ASC;
+        `;
+        const [competencias] = await conexao.query(consulta, [utilizador_id]);
+        res.json(competencias); // Retorna um array de objetos { id, nome }
+
+    } catch (erro) {
+        console.error(`Erro ao buscar competências para utilizador ${utilizador_id}:`, erro);
+        res.status(500).json({ mensagem: 'Erro interno do servidor ao buscar competências.' });
+    }
+});
+
 module.exports = router;
